@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js & Managers
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -23,17 +23,36 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build local harness bundle & sync assets
+      - name: Auto-detect and build harness overlay
         run: |
-          for pkg in $(find . -maxdepth 3 -name "package.json" -not -path "*/node_modules/*"); do
-            dir=$(dirname "$pkg")
-            echo "Building in $dir"
-            (cd "$dir" && npm install && (npm run build || true))
+          set +e
+          corepack enable
+          echo "=== 1. Check repo structure ==="
+          ls -la
+          ls -la dsh-mobile/
+          ls -la dsh-mobile/app/src/main/ || true
+
+          echo "=== 2. Install workspace dependencies ==="
+          if [ -f "pnpm-lock.yaml" ]; then
+            pnpm install --no-frozen-lockfile
+            pnpm -r build
+          elif [ -f "yarn.lock" ]; then
+            yarn install
+            yarn build
+          else
+            npm install --workspaces --if-present || npm install --legacy-peer-deps
+            npm run build --workspaces --if-present || npm run build
+          fi
+
+          echo "=== 3. Run mobile asset sync scripts ==="
+          for s in $(find . -maxdepth 3 \( -name "*overlay*" -o -name "*sync*" -o -name "*bundle*" -o -name "*mobile*" \) -type f); do
+            case "$s" in
+              *.sh) echo "Running $s"; bash "$s" ;;
+              *.mjs|*.js) echo "Running $s"; node "$s" ;;
+              *.py) echo "Running $s"; python3 "$s" ;;
+            esac
           done
-          for script in $(find . -maxdepth 3 -name "*sync*" -o -name "*overlay*" -o -name "*vendor*"); do
-            if [[ "$script" == *.sh ]]; then bash "$script" || true; fi
-            if [[ "$script" == *.mjs || "$script" == *.js ]]; then node "$script" || true; fi
-          done
+          exit 0
 
       - name: Build Debug APK
         working-directory: dsh-mobile

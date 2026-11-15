@@ -25,10 +25,15 @@ jobs:
 
       - name: Build local harness bundle & sync assets
         run: |
-          npm install
-          npm run build || true
-          if [ -f "scripts/sync-mobile.sh" ]; then bash scripts/sync-mobile.sh; fi
-          if [ -f "package.json" ] && grep -q "mobile" package.json; then npm run build:mobile || true; fi
+          for pkg in $(find . -maxdepth 3 -name "package.json" -not -path "*/node_modules/*"); do
+            dir=$(dirname "$pkg")
+            echo "Building in $dir"
+            (cd "$dir" && npm install && (npm run build || true))
+          done
+          for script in $(find . -maxdepth 3 -name "*sync*" -o -name "*overlay*" -o -name "*vendor*"); do
+            if [[ "$script" == *.sh ]]; then bash "$script" || true; fi
+            if [[ "$script" == *.mjs || "$script" == *.js ]]; then node "$script" || true; fi
+          done
 
       - name: Build Debug APK
         working-directory: dsh-mobile

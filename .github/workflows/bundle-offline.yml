@@ -26,15 +26,14 @@ jobs:
 
       - name: Package Full Offline Bundle
         run: |
-          tar -czf dsh-offline-bundle.tar.gz \
+          tar --warning=no-file-changed -czf /tmp/dsh-offline-bundle.tar.gz \
             --exclude='.git' \
             --exclude='android' \
             --exclude='ios' \
-            --exclude='dsh-offline-bundle.tar.gz' \
-            .
+            . || [ $? -eq 1 ]
 
       - name: Upload Offline Bundle Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dsh-offline-bundle
-          path: dsh-offline-bundle.tar.gz
+          path: /tmp/dsh-offline-bundle.tar.gz

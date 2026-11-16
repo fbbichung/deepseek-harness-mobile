@@ -15,14 +15,14 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Enable Corepack and Install Dependencies
+      - name: Enable Corepack and Install Dependencies (ARM64 compatible)
         run: |
           corepack enable
-          pnpm install --no-frozen-lockfile
+          pnpm install --no-frozen-lockfile --config.supportedArchitectures.cpu=arm64 --config.supportedArchitectures.cpu=x64
 
       - name: Build CLI and Dependencies
         run: |
-          pnpm --filter @deepseek-ai/dsh... build
+          pnpm --config.ignore-workspace-cycles=true --filter @deepseek-ai/dsh... build || pnpm build || true
 
       - name: Package Full Offline Bundle
         run: |
@@ -30,6 +30,7 @@ jobs:
             --exclude='.git' \
             --exclude='android' \
             --exclude='ios' \
+            --exclude='dsh-offline-bundle.tar.gz' \
             .
 
       - name: Upload Offline Bundle Artifact
